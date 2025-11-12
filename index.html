@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Letter Card Selector</title>
+  <title>Alpha-Better</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -43,9 +43,6 @@
     }
 
     select {
-      width: auto;
-      min-width: 120px;
-      max-width: 160px;
       padding: 10px 14px;
       font-size: 1rem;
       font-weight: bold;
@@ -57,18 +54,17 @@
       transition: all 0.3s ease;
       appearance: none;
       cursor: pointer;
-      margin: 0 auto 10px auto;
+      margin: 10px auto;
       text-align: center;
     }
 
-    select:hover {
-      border-color: #003d80;
-    }
-
-    select:focus {
-      outline: none;
-      border-color: #003d80;
-      box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.3);
+    .match-type-container {
+      margin: 10px 0;
+      display: none;
+      justify-content: center;
+      gap: 20px;
+      font-size: 0.95rem;
+      color: white;
     }
 
     .toggle-container {
@@ -76,7 +72,8 @@
       align-items: center;
       gap: 10px;
       font-size: 0.9rem;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+      justify-content: center;
     }
 
     .switch {
@@ -208,9 +205,21 @@
 
   <div class="top-card-container">
     <div class="top-card" id="selectedCard">A</div>
+
+    <select id="modeSelect" onchange="switchMode()">
+      <option value="letters">Letters</option>
+      <option value="numbers">Numbers</option>
+    </select>
+
     <select id="letterSelect" onchange="updateSelectedCard()"></select>
+
+    <div class="match-type-container" id="matchTypeContainer">
+      <label><input type="radio" name="matchType" value="exact" checked> Match exact letter</label>
+      <label><input type="radio" name="matchType" value="opposite"> Match opposite case</label>
+    </div>
+
     <div class="toggle-container">
-      <label for="hideToggle">Hide selected letter</label>
+      <label for="hideToggle">Hide selected character</label>
       <label class="switch">
         <input type="checkbox" id="hideToggle" onchange="toggleVisibility()" />
         <span class="slider"></span>
@@ -224,19 +233,37 @@
     <button class="card" id="card3" onclick="checkMatch(this)">C</button>
     <button class="card" id="card4" onclick="checkMatch(this)">D</button>
   </div>
-  <button class="generate" onclick="generateLetters()">Generate Letters</button>
+  <button class="generate" onclick="generateLetters()">Generate Characters</button>
 
   <script>
     const select = document.getElementById('letterSelect');
     const selectedCard = document.getElementById('selectedCard');
     const hideToggle = document.getElementById('hideToggle');
+    const modeSelect = document.getElementById('modeSelect');
+    const matchTypeContainer = document.getElementById('matchTypeContainer');
 
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    for (let char of letters) {
-      const option = document.createElement('option');
-      option.value = char;
-      option.textContent = char;
-      select.appendChild(option);
+    const numbers = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
+    let currentSet = letters;
+
+    function switchMode() {
+      currentSet = modeSelect.value === 'numbers' ? numbers : letters;
+      matchTypeContainer.style.display = modeSelect.value === 'letters' ? 'flex' : 'none';
+      populateSelect();
+      updateSelectedCard();
+      generateLetters();
+    }
+
+    function populateSelect() {
+      select.innerHTML = '';
+      const source = Array.isArray(currentSet) ? currentSet : currentSet.split('');
+      for (let char of source) {
+        const option = document.createElement('option');
+        option.value = char;
+        option.textContent = char;
+        select.appendChild(option);
+      }
+      select.value = source[0];
     }
 
     function updateSelectedCard() {
@@ -251,32 +278,45 @@
       select.classList.toggle('hidden', isHidden);
     }
 
-    function getRandomLetter() {
-      return letters.charAt(Math.floor(Math.random() * letters.length));
+    function getOppositeCase(char) {
+      return char === char.toUpperCase() ? char.toLowerCase() : char.toUpperCase();
+    }
+
+    function getRandomChar() {
+      const source = Array.isArray(currentSet) ? currentSet : currentSet.split('');
+      return source[Math.floor(Math.random() * source.length)];
     }
 
     function generateLetters() {
       const selected = select.value;
-      const randomLetters = [];
+      if (!selected) return;
 
-      while (randomLetters.length < 3) {
-        const rand = getRandomLetter();
-        if (rand !== selected) randomLetters.push(rand);
+      const matchType = document.querySelector('input[name="matchType"]:checked')?.value || 'exact';
+      const correctMatch = matchType === 'opposite' ? getOppositeCase(selected) : selected;
+
+      const randomChars = [];
+
+      while (randomChars.length < 3) {
+        const rand = getRandomChar();
+        const randMatch = matchType === 'opposite' ? getOppositeCase(rand) : rand;
+                randomChars.push(randMatch);
       }
 
       const insertIndex = Math.floor(Math.random() * 4);
-      randomLetters.splice(insertIndex, 0, selected);
+      randomChars.splice(insertIndex, 0, correctMatch);
 
       for (let i = 1; i <= 4; i++) {
         const card = document.getElementById(`card${i}`);
-        card.textContent = randomLetters[i - 1];
+        card.textContent = randomChars[i - 1];
         card.classList.remove('flash-green', 'flash-red');
       }
     }
 
     function checkMatch(button) {
       const selected = select.value;
-      const isMatch = button.textContent === selected;
+      const matchType = document.querySelector('input[name="matchType"]:checked')?.value || 'exact';
+      const correctMatch = matchType === 'opposite' ? getOppositeCase(selected) : selected;
+      const isMatch = button.textContent === correctMatch;
       const flashClass = isMatch ? 'flash-green' : 'flash-red';
 
       button.classList.add(flashClass);
@@ -286,9 +326,7 @@
     }
 
     // Initial load
-    select.value = 'A';
-    updateSelectedCard();
-    generateLetters();
+    switchMode();
   </script>
 
 </body>
